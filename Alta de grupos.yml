@@ -1,0 +1,115 @@
+---
+- name: Create group
+  hosts: all
+  vars:
+    mygroup: "Escritores"
+  tasks:
+
+    - name: Detectar sistema operativo
+      set_fact:
+        sistema: "{{ ansible_os_family }}"
+
+    - debug:
+        msg: "El OS es: {{ sistema }}"
+
+##########################
+## ECHO PARA LINUX ##
+##########################
+    - name: Create group (Linux)
+      ansible.builtin.group:
+        name: "{{ Escritores }}"
+        state: absent
+      register: grupo_lxn  
+      when: sistema == "RedHat" or sistema == "Debian"
+
+##########################
+## ECHO PARA WINDOWS ##
+##########################
+    - name: Create group (Windows)
+      ansible.windows.win_group:
+        name: "{{ Escritores }}"
+        state: absent
+      register: grupo_win  
+      when: sistema == "Windows"
+
+##########################
+## EVALUACIÓN DE TAREA EN LINUX ##
+##########################
+    - set_fact:
+        resultTarea: "{{ 'SUCCESSFUL' if grupo_lxn is defined and grupo_lxn.changed == true else 'ESCALATED' }}"
+      ignore_errors: yes
+      when: sistema == "RedHat" or sistema == "Debian"
+
+    - debug:
+        var: resultTarea
+      ignore_errors: yes
+      when: sistema == "RedHat" or sistema == "Debian"
+
+    ##########################
+    ## EVALUACIÓN DE TAREA EN WINDOWS ##
+    ##########################
+    - set_fact:
+        resultTarea: "{{ 'SUCCESSFUL' if grupo_win is defined and grupo_win.changed == true else 'ESCALATED' }}"
+      ignore_errors: yes
+      when: sistema == "Windows"
+
+    - debug:
+        var: resultTarea
+      ignore_errors: yes
+      when: sistema == "Windows"
+
+    ##########################
+    ## RESULTADO DE LA TAREA EJECUTADA EN LINUX ##
+    ##########################
+    - name: Resultado de la tarea cuando es Exitoso en Linux
+      block:
+        - name: Muestra el Resultado
+          debug:
+            msg:
+              - "RESULT-AUTOMATION"
+              - "-------------------------------------------------------"
+              - "Remediation Task Result is: {{ resultTarea }}"
+              - "The group has been delete successfully in the host {{ ansible_hostname }}"
+          ignore_errors: yes
+      when: resultTarea == "SUCCESSFUL" and ansible_os_family in ['Redhat', 'Debian']
+
+    - name: Resultado de la tarea cuando es Fallido en Linux
+      block:
+        - name: Muestra el Resultado
+          debug:
+            msg:
+              - "RESULT-AUTOMATION"
+              - "-------------------------------------------------------"
+              - "Remediation Task Result is: {{ resultTarea }}"
+              - "Error message: The group cannot not be delete"
+          ignore_errors: yes
+      when: resultTarea == "ESCALATED" and ansible_os_family in ['Redhat', 'Debian']
+
+    ##########################
+    ## RESULTADO DE LA TAREA EJECUTADA EN WINDOWS ##
+    ##########################
+    - name: Resultado de la tarea cuando es Exitoso en Windows
+      block:
+        - name: Muestra el Resultado
+          debug:
+            msg:
+              - "RESULT-AUTOMATION"
+              - "-------------------------------------------------------"
+              - "Remediation Task Result is: {{ resultTarea }}"
+              - "The group has been delete successfully in the host {{ ansible_hostname }}"
+              - "{{ grupo_win }}"
+          ignore_errors: yes
+      when: resultTarea == "SUCCESSFUL" and ansible_os_family == 'Windows'
+
+    - name: Resultado de la tarea cuando es Fallido en Windows
+      block:
+        - name: Muestra el Resultado
+          debug:
+            msg:
+              - "RESULT-AUTOMATION"
+              - "-------------------------------------------------------"
+              - "Remediation Task Result is: {{ resultTarea }}"
+              - "Error message: The group cannot not be delete"
+              - "{{ grupo_win }}"
+          ignore_errors: yes
+      when: resultTarea == "ESCALATED" and ansible_os_family == 'Windows'

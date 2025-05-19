@@ -1,0 +1,119 @@
+---
+- name: Detener un servicio en Ubuntu
+  hosts: 
+  vars:
+    servicio: bthserv
+  tasks:
+     - name: Detectar sistema operativo
+       set_fact:
+        sistema: "{{ ansible_os_family }}"
+     - debug:
+        msg: "El OS es: {{ sistema }}"
+
+
+##########################
+## ECHO PARA LINUX ##
+##########################
+     - name: Detener un servicio en Linux
+       ansible.builtin.systemd:
+        name: apache2  #"{{ servicio }}"
+        state: stopped
+       when: sistema == "RedHat" or sistema == "Debian"
+
+     - debug: var=serv_lxn
+       when: sistema == "RedHat" or sistema == "Debian"
+
+##########################
+## ECHO PARA WINDOWS ##
+##########################
+     - name: Detener el servicio de Windows 
+       win_service:
+         name: bthserv #"{{ servicio }}" #bthserv
+         state: stopped
+       when: sistema == "Windows"   
+
+     - debug: var=serv_win  
+       when: sistema == "Windows"
+
+##########################
+## EVALUACIÓN DE TAREA EN LINUX ##
+##########################
+     - set_fact:
+        resultTarea: "{{ 'SUCCESSFUL' if serv_lxn is defined and serv_lxn.changed == false else 'ESCALATED' }}"
+       ignore_errors: yes
+       when: sistema == "RedHat" or sistema == "Debian"
+
+     - debug:
+        var: resultTarea
+       ignore_errors: yes
+       when: sistema == "RedHat" or sistema == "Debian"
+
+    ##########################
+    ## EVALUACIÓN DE TAREA EN WINDOWS ##
+    ##########################
+     - set_fact:
+        resultTarea: "{{ 'SUCCESSFUL' if serv_win is defined and serv_win.changed == true else 'ESCALATED' }}"
+       ignore_errors: yes
+       when: ansible_os_family == 'Windows'
+
+     - debug:
+        var: resultTarea
+       ignore_errors: yes
+       when: ansible_os_family == 'Windows'
+
+    ##########################
+    ## RESULTADO DE LA TAREA EJECUTADA EN LINUX ##
+    ##########################
+     - name: Resultado de la tarea cuando es Exitoso en Linux
+       block:
+        - name: Muestra el Resultado
+          debug:
+            msg:
+              - "RESULT-AUTOMATION"
+              - "-------------------------------------------------------"
+              - "Remediation Task Result is: {{ resultTarea }}"
+              - "The service has been created successfully in the host {{ ansible_hostname }}"
+              - "{{ servicio }}"
+          ignore_errors: yes
+       when: resultTarea == "SUCCESSFUL" and sistema == "RedHat" or sistema == "Debian"
+
+     - name: Resultado de la tarea cuando es Fallido en Linux
+       block:
+        - name: Muestra el Resultado
+          debug:
+            msg:
+              - "RESULT-AUTOMATION"
+              - "-------------------------------------------------------"
+              - "Remediation Task Result is: {{ resultTarea }}"
+              - "Error message: The service could not be stopped"
+          ignore_errors: yes
+       when: resultTarea == "ESCALATED" and sistema == "RedHat" or sistema == "Debian"
+
+    ##########################
+    ## RESULTADO DE LA TAREA EJECUTADA EN WINDOWS ##
+    ##########################
+     - name: Resultado de la tarea cuando es Exitoso en Windows
+       block:
+        - name: Muestra el Resultado
+          debug:
+            msg:
+              - "RESULT-AUTOMATION"
+              - "-------------------------------------------------------"
+              - "Remediation Task Result is: {{ resultTarea }}"
+              - "Service could be successfully stopped on the host {{ ansible_hostname }}"
+              - "{{ servicio }}"
+          ignore_errors: yes
+       when: resultTarea == "SUCCESSFUL" and sistema == "Windows"
+
+     - name: Resultado de la tarea cuando es Fallido en Windows
+       block:
+        - name: Muestra el Resultado
+          debug:
+            msg:
+              - "RESULT-AUTOMATION"
+              - "-------------------------------------------------------"
+              - "Remediation Task Result is: {{ resultTarea }}"
+              - "Error message: the service could not be stopped"
+              - "{{ servicio }}"
+          ignore_errors: yes
+       when: resultTarea == "ESCALATED" and sistema == "Windows"      
